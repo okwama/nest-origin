@@ -62,38 +62,50 @@ export class AttendanceController {
   }
 
   @Post('check-out')
-  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
   async checkOut(@Body() checkOutDto: CheckOutDto, @Request() req): Promise<any> {
-    // Extract staffId from JWT token
-    const staffId = req.user.id;
+    console.log('=== CHECK-OUT CONTROLLER START ===');
+    console.log('Request body:', checkOutDto);
+    console.log('User from JWT:', req.user);
     
-    // Silent validation (logs issues but doesn't block checkout)
-    await this.attendanceService.validateDeviceAndIp(
-      staffId, 
-      checkOutDto.deviceId, 
-      checkOutDto.ipAddress
-    );
-    
-    // Create checkout data with staffId from JWT
-    const checkoutData = {
-      ...checkOutDto,
-      staffId,
-    };
-    
-    // Perform checkout
-    const result = await this.attendanceService.checkOut(checkoutData);
-    
-    // Check if result is null before accessing properties
-    if (!result) {
-      throw new BadRequestException('Check-out failed - no attendance record found');
+    try {
+      // Extract staffId from JWT token
+      const staffId = req.user.id;
+      console.log('Extracted staff ID:', staffId);
+      
+      // Create checkout data with staffId from JWT
+      const checkoutData = {
+        ...checkOutDto,
+        staffId,
+      };
+      console.log('Checkout data with staff ID:', checkoutData);
+      
+      // Perform checkout
+      console.log('Calling attendance service checkOut...');
+      const result = await this.attendanceService.checkOut(checkoutData);
+      console.log('Service result:', result);
+      
+      // Check if result is null before accessing properties
+      if (!result) {
+        console.error('Check-out failed - no attendance record found');
+        throw new BadRequestException('Check-out failed - no attendance record found');
+      }
+      
+      console.log('Check-out successful, returning response...');
+      // Return minimal success response
+      return {
+        success: true,
+        message: 'Check-out successful',
+        attendanceId: result.id
+      };
+      
+    } catch (error) {
+      console.error('Error in checkOut controller:', error);
+      console.error('Error stack:', error.stack);
+      
+      // Re-throw the error to be handled by global exception handler
+      throw error;
     }
-    
-    // Return minimal success response
-    return {
-      success: true,
-      message: 'Check-out successful',
-      attendanceId: result.id
-    };
   }
 
   @Get('current/:staffId')

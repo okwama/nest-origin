@@ -22,16 +22,38 @@ export class AttendanceService {
   ) {}
 
   private async getDbConnection(): Promise<mysql.Connection> {
-    if (!this.dbConnection) {
-      this.dbConnection = await mysql.createConnection({
-        host: process.env.DB_HOST || '102.218.215.35',
-        port: parseInt(process.env.DB_PORT) || 3306,
-        user: process.env.DB_USERNAME || 'citlogis_bryan',
-        password: process.env.DB_PASSWORD || '@bo9511221.qwerty',
-        database: process.env.DB_DATABASE || 'citlogis_finance',
-      });
+    try {
+      if (!this.dbConnection) {
+        console.log('Creating new database connection...');
+        console.log('DB Host:', process.env.DB_HOST || '102.218.215.35');
+        console.log('DB Port:', process.env.DB_PORT || 3306);
+        console.log('DB User:', process.env.DB_USERNAME || 'citlogis_bryan');
+        console.log('DB Database:', process.env.DB_DATABASE || 'citlogis_finance');
+        
+        this.dbConnection = await mysql.createConnection({
+          host: process.env.DB_HOST || '102.218.215.35',
+          port: parseInt(process.env.DB_PORT) || 3306,
+          user: process.env.DB_USERNAME || 'citlogis_bryan',
+          password: process.env.DB_PASSWORD || '@bo9511221.qwerty',
+          database: process.env.DB_DATABASE || 'citlogis_finance',
+        });
+        
+        console.log('Database connection created successfully');
+      }
+      
+      // Test the connection
+      await this.dbConnection.ping();
+      console.log('Database connection is alive');
+      
+      return this.dbConnection;
+    } catch (error) {
+      console.error('Database connection error:', error);
+      console.error('Error stack:', error.stack);
+      
+      // Reset connection on error
+      this.dbConnection = null;
+      throw new Error(`Database connection failed: ${error.message}`);
     }
-    return this.dbConnection;
   }
 
   async checkIn(checkInDto: CheckInDto): Promise<Attendance> {
@@ -169,6 +191,12 @@ export class AttendanceService {
   async checkOut(checkOutDto: CheckOutDto & { staffId: number }): Promise<Attendance> {
     const { staffId, deviceId, ipAddress, ...checkOutData } = checkOutDto;
     
+    console.log('=== CHECK-OUT PROCESS START ===');
+    console.log('Staff ID:', staffId);
+    console.log('Device ID:', deviceId);
+    console.log('IP Address:', ipAddress);
+    console.log('Check-out data:', checkOutData);
+    
     // Validate IP address if provided (silent validation)
     if (ipAddress) {
       console.log(`Validating IP address for check-out: "${ipAddress}"`);
@@ -183,9 +211,30 @@ export class AttendanceService {
     }
 
     try {
+      console.log('Getting database connection...');
       const connection = await this.getDbConnection();
+      console.log('Database connection established');
+      
+      // Check if stored procedure exists
+      console.log('Checking if CheckOutStaff procedure exists...');
+      try {
+        const [procedureCheck] = await connection.execute(
+          'SHOW PROCEDURE STATUS WHERE Name = ? AND Db = ?',
+          ['CheckOutStaff', process.env.DB_DATABASE || 'citlogis_finance']
+        );
+        console.log('Procedure check result:', procedureCheck);
+        
+        if (!Array.isArray(procedureCheck) || procedureCheck.length === 0) {
+          console.error('CheckOutStaff procedure not found, using TypeORM fallback');
+          throw new Error('Stored procedure not found');
+        }
+      } catch (error) {
+        console.error('Error checking stored procedure:', error);
+        throw new Error('Stored procedure check failed');
+      }
       
       // Call the stored procedure
+      console.log('Calling CheckOutStaff procedure...');
       const [results] = await connection.execute(
         'CALL CheckOutStaff(?, ?, ?, ?, ?)',
         [
@@ -197,67 +246,83 @@ export class AttendanceService {
         ]
       );
       
+      console.log('Procedure results:', results);
+      
       // Get the result from the procedure
       const result = Array.isArray(results) ? results[0] : results;
       const procedureResult = Array.isArray(result) ? result[0] : result as any;
       
+      console.log('Procedure result:', procedureResult);
+      
       if (procedureResult.result === 'ERROR') {
+        console.error('Procedure returned error:', procedureResult.message);
         throw new BadRequestException(procedureResult.message);
       }
       
+      console.log('Procedure successful, getting updated attendance...');
       // Get the updated attendance record
-      return this.getCurrentAttendance(staffId);
+      const updatedAttendance = await this.getCurrentAttendance(staffId);
+      console.log('Updated attendance:', updatedAttendance);
+      
+      return updatedAttendance;
       
     } catch (error) {
-      console.error('Error calling CheckOutStaff procedure:', error);
+      console.error('Error in checkOut method:', error);
+      console.error('Error stack:', error.stack);
       
       // Fallback to TypeORM if procedure fails
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+      console.log('Falling back to TypeORM check-out...');
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-    const attendance = await this.attendanceRepository.findOne({
-      where: { staffId, date: today }
-    });
+      const attendance = await this.attendanceRepository.findOne({
+        where: { staffId, date: today }
+      });
 
-    if (!attendance) {
-      throw new NotFoundException('No check-in record found for today');
-    }
+      if (!attendance) {
+        throw new NotFoundException('No check-in record found for today');
+      }
 
-    if (attendance.checkOutTime) {
-      throw new BadRequestException('Already checked out today');
-    }
+      if (attendance.checkOutTime) {
+        throw new BadRequestException('Already checked out today');
+      }
 
-    const now = new Date();
-    const checkOutTime = new Date();
-    
-    // Calculate total hours
-    const checkInTime = attendance.checkInTime;
-    const totalHours = (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
-    
-    // Determine if early departure (assuming 5 PM end time)
-    const shiftEnd = new Date(today);
-    shiftEnd.setHours(17, 0, 0, 0);
-    
-    const isEarlyDeparture = checkOutTime < shiftEnd;
-    const earlyDepartureMinutes = isEarlyDeparture ? Math.floor((shiftEnd.getTime() - checkOutTime.getTime()) / (1000 * 60)) : 0;
-    
-    // Calculate overtime (hours beyond 8 hours)
-    const regularHours = 8;
-    const overtimeHours = totalHours > regularHours ? totalHours - regularHours : 0;
+      const now = new Date();
+      const checkOutTime = new Date();
+      
+      // Calculate total hours
+      const checkInTime = attendance.checkInTime;
+      const totalHours = (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
+      
+      // Determine if early departure (assuming 5 PM end time)
+      const shiftEnd = new Date(today);
+      shiftEnd.setHours(17, 0, 0, 0);
+      
+      const isEarlyDeparture = checkOutTime < shiftEnd;
+      const earlyDepartureMinutes = isEarlyDeparture ? Math.floor((shiftEnd.getTime() - checkOutTime.getTime()) / (1000 * 60)) : 0;
+      
+      // Calculate overtime (hours beyond 8 hours)
+      const regularHours = 8;
+      const overtimeHours = totalHours > regularHours ? totalHours - regularHours : 0;
 
-    attendance.checkOutTime = checkOutTime;
-    attendance.checkOutLatitude = checkOutData.latitude;
-    attendance.checkOutLongitude = checkOutData.longitude;
-    attendance.checkOutLocation = checkOutData.location;
-    attendance.checkOutIp = ipAddress;
-    attendance.totalHours = parseFloat(totalHours.toFixed(2));
-    attendance.overtimeHours = parseFloat(overtimeHours.toFixed(2));
-    attendance.isEarlyDeparture = isEarlyDeparture;
-    attendance.earlyDepartureMinutes = earlyDepartureMinutes;
-    attendance.status = AttendanceStatus.CHECKED_OUT;
-    attendance.notes = checkOutData.notes;
+      attendance.checkOutTime = checkOutTime;
+      attendance.checkOutLatitude = checkOutData.latitude;
+      attendance.checkOutLongitude = checkOutData.longitude;
+      attendance.checkOutLocation = checkOutData.location;
+      attendance.checkOutIp = ipAddress;
+      attendance.totalHours = parseFloat(totalHours.toFixed(2));
+      attendance.overtimeHours = parseFloat(overtimeHours.toFixed(2));
+      attendance.isEarlyDeparture = isEarlyDeparture;
+      attendance.earlyDepartureMinutes = earlyDepartureMinutes;
+      attendance.status = AttendanceStatus.CHECKED_OUT;
+      attendance.notes = checkOutData.notes;
 
-    return this.attendanceRepository.save(attendance);
+      console.log('Saving attendance with TypeORM fallback...');
+      const savedAttendance = await this.attendanceRepository.save(attendance);
+      console.log('Attendance saved successfully:', savedAttendance);
+      
+      return savedAttendance;
     }
   }
 
