@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AllowedIp } from './entities/allowed-ip.entity';
-import IPCIDR from 'ip-cidr';
 
 @Injectable()
 export class AllowedIpService {
@@ -56,6 +55,8 @@ export class AllowedIpService {
     for (const allowedIp of allowedIps) {
       if (allowedIp.ipAddress.includes('/')) {
         try {
+          // Dynamic import for ES module compatibility
+          const { default: IPCIDR } = await import('ip-cidr');
           const cidr = new IPCIDR(allowedIp.ipAddress);
           if (cidr.contains(trimmedIp)) {
             console.log(`IP "${trimmedIp}" is allowed (within range: ${allowedIp.ipAddress})`);
