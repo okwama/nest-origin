@@ -18,6 +18,7 @@ import {
   ParseIntPipe,
   HttpCode,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
@@ -82,7 +83,10 @@ export class AttendanceController {
     // Perform checkout
     const result = await this.attendanceService.checkOut(checkoutData);
     
-
+    // Check if result is null before accessing properties
+    if (!result) {
+      throw new BadRequestException('Check-out failed - no attendance record found');
+    }
     
     // Return minimal success response
     return {

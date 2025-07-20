@@ -10,6 +10,52 @@ export class AllowedIpService {
     private allowedIpRepository: Repository<AllowedIp>,
   ) {}
 
+  // Simple IP validation function that doesn't rely on external packages
+  private isIpInCidrRange(ip: string, cidr: string): boolean {
+    try {
+      const [network, bits] = cidr.split('/');
+      const mask = parseInt(bits);
+      
+      if (isNaN(mask) || mask < 0 || mask > 32) {
+        return false;
+      }
+      
+      // Convert IPs to numbers
+      const ipNum = this.ipToNumber(ip);
+      const networkNum = this.ipToNumber(network);
+      
+      if (ipNum === null || networkNum === null) {
+        return false;
+      }
+      
+      // Calculate network mask
+      const maskNum = mask === 32 ? 0xFFFFFFFF : (0xFFFFFFFF << (32 - mask));
+      
+      // Check if IP is in the same network
+      return (ipNum & maskNum) === (networkNum & maskNum);
+    } catch (error) {
+      console.log(`Error validating CIDR ${cidr}:`, error);
+      return false;
+    }
+  }
+
+  private ipToNumber(ip: string): number | null {
+    try {
+      const parts = ip.split('.');
+      if (parts.length !== 4) return null;
+      
+      let result = 0;
+      for (let i = 0; i < 4; i++) {
+        const part = parseInt(parts[i]);
+        if (isNaN(part) || part < 0 || part > 255) return null;
+        result = (result << 8) + part;
+      }
+      return result;
+    } catch (error) {
+      return null;
+    }
+  }
+
   async findAll(): Promise<AllowedIp[]> {
     return this.allowedIpRepository.find({
       where: { isActive: true },
@@ -51,19 +97,16 @@ export class AllowedIpService {
       return true;
     }
     
-    // Check CIDR ranges
+    // Check CIDR ranges using our custom function
     for (const allowedIp of allowedIps) {
       if (allowedIp.ipAddress.includes('/')) {
         try {
-          // Dynamic import for ES module compatibility
-          const { default: IPCIDR } = await import('ip-cidr');
-          const cidr = new IPCIDR(allowedIp.ipAddress);
-          if (cidr.contains(trimmedIp)) {
+          if (this.isIpInCidrRange(trimmedIp, allowedIp.ipAddress)) {
             console.log(`IP "${trimmedIp}" is allowed (within range: ${allowedIp.ipAddress})`);
             return true;
           }
         } catch (error) {
-          console.log(`Invalid CIDR format: ${allowedIp.ipAddress}`);
+          console.log(`Error checking CIDR range ${allowedIp.ipAddress}:`, error);
         }
       }
     }

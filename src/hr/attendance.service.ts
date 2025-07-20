@@ -431,25 +431,32 @@ export class AttendanceService {
       attendance.createdAt = new Date(attendanceData.created_at);
       attendance.updatedAt = new Date(attendanceData.updated_at);
       
-      // Add staff relation
       if (staff) {
         attendance.staff = staff;
       }
-      
-
       
       return attendance;
       
     } catch (error) {
       console.error('Error calling GetCurrentAttendanceStatus procedure:', error);
-      // Fallback to TypeORM if procedure fails
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    return this.attendanceRepository.findOne({
-      where: { staffId, date: today },
-      relations: ['staff'],
-    });
+      console.log('Falling back to TypeORM query...');
+      
+      // Fallback to TypeORM query if stored procedure fails
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      return this.attendanceRepository.findOne({
+        where: {
+          staffId: staffId,
+          date: today,
+          status: 1
+        },
+        relations: ['staff'],
+        order: { createdAt: 'DESC' }
+      });
     }
   }
 
