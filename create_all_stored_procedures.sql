@@ -47,7 +47,6 @@ BEGIN
     FROM attendance 
     WHERE staff_id = p_staff_id 
     AND date = CURDATE()
-    AND status = 1
     ORDER BY created_at DESC
     LIMIT 1;
 END$$

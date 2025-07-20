@@ -443,28 +443,39 @@ export class AttendanceService {
   }
 
   async getCurrentAttendance(staffId: number): Promise<Attendance | null> {
+    console.log('=== GET CURRENT ATTENDANCE START ===');
+    console.log('Staff ID:', staffId);
+    
     try {
       const connection = await this.getDbConnection();
+      console.log('Database connection established for getCurrentAttendance');
       
       // Call the stored procedure
+      console.log('Calling GetCurrentAttendanceStatus procedure...');
       const [results] = await connection.execute(
         'CALL GetCurrentAttendanceStatus(?)',
         [staffId]
       );
       
+      console.log('GetCurrentAttendanceStatus results:', results);
+      
       // The procedure returns [dataArray, metadataObject]
       // We need to get the first element of the data array
       const dataArray = Array.isArray(results) ? results[0] : [];
+      console.log('Data array:', dataArray);
       
       if (!dataArray || (Array.isArray(dataArray) && dataArray.length === 0)) {
+        console.log('No attendance data found, returning null');
         return null;
       }
       
       // Get the first (and should be only) attendance record
       const attendanceData = (dataArray as any[])[0] as any;
+      console.log('Attendance data from procedure:', attendanceData);
       
       // Get staff information
       const staff = await this.staffService.findOne(staffId);
+      console.log('Staff data:', staff);
       
       const attendance = new Attendance();
       attendance.id = attendanceData.id;
@@ -500,28 +511,41 @@ export class AttendanceService {
         attendance.staff = staff;
       }
       
+      console.log('Created attendance object:', attendance);
       return attendance;
       
     } catch (error) {
       console.error('Error calling GetCurrentAttendanceStatus procedure:', error);
+      console.error('Error stack:', error.stack);
       console.log('Falling back to TypeORM query...');
       
       // Fallback to TypeORM query if stored procedure fails
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      
-      return this.attendanceRepository.findOne({
-        where: {
-          staffId: staffId,
-          date: today,
-          status: 1
-        },
-        relations: ['staff'],
-        order: { createdAt: 'DESC' }
-      });
+      try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
+        console.log('Querying with TypeORM fallback...');
+        console.log('Date range:', today, 'to', tomorrow);
+        
+        const fallbackResult = await this.attendanceRepository.findOne({
+          where: {
+            staffId: staffId,
+            date: today,
+          },
+          relations: ['staff'],
+          order: { createdAt: 'DESC' }
+        });
+        
+        console.log('TypeORM fallback result:', fallbackResult);
+        return fallbackResult;
+        
+      } catch (fallbackError) {
+        console.error('TypeORM fallback also failed:', fallbackError);
+        throw fallbackError;
+      }
     }
   }
 
