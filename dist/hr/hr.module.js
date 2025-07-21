@@ -23,6 +23,11 @@ const allowed_ip_service_1 = require("./allowed-ip.service");
 const allowed_ip_controller_1 = require("./allowed-ip.controller");
 const user_device_service_1 = require("./user-device.service");
 const user_device_controller_1 = require("./user-device.controller");
+const out_of_office_entity_1 = require("./entities/out-of-office.entity");
+const out_of_office_service_1 = require("./out-of-office.service");
+const out_of_office_controller_1 = require("./out-of-office.controller");
+const activity_controller_1 = require("./activity.controller");
+const activity_service_1 = require("./activity.service");
 const attendance_entity_1 = require("./entities/attendance.entity");
 const leave_request_entity_1 = require("./entities/leave-request.entity");
 const leave_balance_entity_1 = require("./entities/leave-balance.entity");
@@ -47,6 +52,7 @@ exports.HrModule = HrModule = __decorate([
                 notice_entity_1.Notice,
                 allowed_ip_entity_1.AllowedIp,
                 user_device_entity_1.UserDevice,
+                out_of_office_entity_1.OutOfOffice,
             ]),
             users_module_1.UsersModule,
         ],
@@ -58,6 +64,8 @@ exports.HrModule = HrModule = __decorate([
             payroll_controller_1.PayrollController,
             allowed_ip_controller_1.AllowedIpController,
             user_device_controller_1.UserDeviceController,
+            out_of_office_controller_1.OutOfOfficeController,
+            activity_controller_1.ActivityController,
         ],
         providers: [
             attendance_service_1.AttendanceService,
@@ -67,6 +75,8 @@ exports.HrModule = HrModule = __decorate([
             payroll_service_1.PayrollService,
             allowed_ip_service_1.AllowedIpService,
             user_device_service_1.UserDeviceService,
+            out_of_office_service_1.OutOfOfficeService,
+            activity_service_1.ActivityService,
         ],
         exports: [
             attendance_service_1.AttendanceService,
@@ -76,6 +86,8 @@ exports.HrModule = HrModule = __decorate([
             payroll_service_1.PayrollService,
             allowed_ip_service_1.AllowedIpService,
             user_device_service_1.UserDeviceService,
+            out_of_office_service_1.OutOfOfficeService,
+            activity_service_1.ActivityService,
         ],
     })
 ], HrModule);

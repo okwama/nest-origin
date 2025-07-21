@@ -23,20 +23,20 @@ export class AttendanceService {
 
   private async getDbConnection(): Promise<mysql.Connection> {
     try {
-      if (!this.dbConnection) {
+    if (!this.dbConnection) {
         console.log('Creating new database connection...');
         console.log('DB Host:', process.env.DB_HOST || '102.218.215.35');
         console.log('DB Port:', process.env.DB_PORT || 3306);
         console.log('DB User:', process.env.DB_USERNAME || 'citlogis_bryan');
         console.log('DB Database:', process.env.DB_DATABASE || 'citlogis_finance');
         
-        this.dbConnection = await mysql.createConnection({
-          host: process.env.DB_HOST || '102.218.215.35',
-          port: parseInt(process.env.DB_PORT) || 3306,
-          user: process.env.DB_USERNAME || 'citlogis_bryan',
-          password: process.env.DB_PASSWORD || '@bo9511221.qwerty',
-          database: process.env.DB_DATABASE || 'citlogis_finance',
-        });
+      this.dbConnection = await mysql.createConnection({
+        host: process.env.DB_HOST || '102.218.215.35',
+        port: parseInt(process.env.DB_PORT) || 3306,
+        user: process.env.DB_USERNAME || 'citlogis_bryan',
+        password: process.env.DB_PASSWORD || '@bo9511221.qwerty',
+        database: process.env.DB_DATABASE || 'citlogis_finance',
+      });
         
         console.log('Database connection created successfully');
       }
@@ -45,7 +45,7 @@ export class AttendanceService {
       await this.dbConnection.ping();
       console.log('Database connection is alive');
       
-      return this.dbConnection;
+    return this.dbConnection;
     } catch (error) {
       console.error('Database connection error:', error);
       console.error('Error stack:', error.stack);
@@ -273,50 +273,50 @@ export class AttendanceService {
       // Fallback to TypeORM if procedure fails
       console.log('Falling back to TypeORM check-out...');
       
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-      const attendance = await this.attendanceRepository.findOne({
-        where: { staffId, date: today }
-      });
+    const attendance = await this.attendanceRepository.findOne({
+      where: { staffId, date: today }
+    });
 
-      if (!attendance) {
-        throw new NotFoundException('No check-in record found for today');
-      }
+    if (!attendance) {
+      throw new NotFoundException('No check-in record found for today');
+    }
 
-      if (attendance.checkOutTime) {
-        throw new BadRequestException('Already checked out today');
-      }
+    if (attendance.checkOutTime) {
+      throw new BadRequestException('Already checked out today');
+    }
 
-      const now = new Date();
-      const checkOutTime = new Date();
-      
-      // Calculate total hours
-      const checkInTime = attendance.checkInTime;
-      const totalHours = (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
-      
-      // Determine if early departure (assuming 5 PM end time)
-      const shiftEnd = new Date(today);
-      shiftEnd.setHours(17, 0, 0, 0);
-      
-      const isEarlyDeparture = checkOutTime < shiftEnd;
-      const earlyDepartureMinutes = isEarlyDeparture ? Math.floor((shiftEnd.getTime() - checkOutTime.getTime()) / (1000 * 60)) : 0;
-      
-      // Calculate overtime (hours beyond 8 hours)
-      const regularHours = 8;
-      const overtimeHours = totalHours > regularHours ? totalHours - regularHours : 0;
+    const now = new Date();
+    const checkOutTime = new Date();
+    
+    // Calculate total hours
+    const checkInTime = attendance.checkInTime;
+    const totalHours = (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
+    
+    // Determine if early departure (assuming 5 PM end time)
+    const shiftEnd = new Date(today);
+    shiftEnd.setHours(17, 0, 0, 0);
+    
+    const isEarlyDeparture = checkOutTime < shiftEnd;
+    const earlyDepartureMinutes = isEarlyDeparture ? Math.floor((shiftEnd.getTime() - checkOutTime.getTime()) / (1000 * 60)) : 0;
+    
+    // Calculate overtime (hours beyond 8 hours)
+    const regularHours = 8;
+    const overtimeHours = totalHours > regularHours ? totalHours - regularHours : 0;
 
-      attendance.checkOutTime = checkOutTime;
-      attendance.checkOutLatitude = checkOutData.latitude;
-      attendance.checkOutLongitude = checkOutData.longitude;
-      attendance.checkOutLocation = checkOutData.location;
-      attendance.checkOutIp = ipAddress;
-      attendance.totalHours = parseFloat(totalHours.toFixed(2));
-      attendance.overtimeHours = parseFloat(overtimeHours.toFixed(2));
-      attendance.isEarlyDeparture = isEarlyDeparture;
-      attendance.earlyDepartureMinutes = earlyDepartureMinutes;
-      attendance.status = AttendanceStatus.CHECKED_OUT;
-      attendance.notes = checkOutData.notes;
+    attendance.checkOutTime = checkOutTime;
+    attendance.checkOutLatitude = checkOutData.latitude;
+    attendance.checkOutLongitude = checkOutData.longitude;
+    attendance.checkOutLocation = checkOutData.location;
+    attendance.checkOutIp = ipAddress;
+    attendance.totalHours = parseFloat(totalHours.toFixed(2));
+    attendance.overtimeHours = parseFloat(overtimeHours.toFixed(2));
+    attendance.isEarlyDeparture = isEarlyDeparture;
+    attendance.earlyDepartureMinutes = earlyDepartureMinutes;
+    attendance.status = AttendanceStatus.CHECKED_OUT;
+    attendance.notes = checkOutData.notes;
 
       console.log('Saving attendance with TypeORM fallback...');
       const savedAttendance = await this.attendanceRepository.save(attendance);
@@ -521,9 +521,9 @@ export class AttendanceService {
       
       // Fallback to TypeORM query if stored procedure fails
       try {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
         
@@ -535,9 +535,9 @@ export class AttendanceService {
             staffId: staffId,
             date: today,
           },
-          relations: ['staff'],
+      relations: ['staff'],
           order: { createdAt: 'DESC' }
-        });
+    });
         
         console.log('TypeORM fallback result:', fallbackResult);
         return fallbackResult;

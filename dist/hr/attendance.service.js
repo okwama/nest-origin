@@ -30,16 +30,32 @@ let AttendanceService = class AttendanceService {
         this.dbConnection = null;
     }
     async getDbConnection() {
-        if (!this.dbConnection) {
-            this.dbConnection = await mysql.createConnection({
-                host: process.env.DB_HOST || '102.218.215.35',
-                port: parseInt(process.env.DB_PORT) || 3306,
-                user: process.env.DB_USERNAME || 'citlogis_bryan',
-                password: process.env.DB_PASSWORD || '@bo9511221.qwerty',
-                database: process.env.DB_DATABASE || 'citlogis_finance',
-            });
+        try {
+            if (!this.dbConnection) {
+                console.log('Creating new database connection...');
+                console.log('DB Host:', process.env.DB_HOST || '102.218.215.35');
+                console.log('DB Port:', process.env.DB_PORT || 3306);
+                console.log('DB User:', process.env.DB_USERNAME || 'citlogis_bryan');
+                console.log('DB Database:', process.env.DB_DATABASE || 'citlogis_finance');
+                this.dbConnection = await mysql.createConnection({
+                    host: process.env.DB_HOST || '102.218.215.35',
+                    port: parseInt(process.env.DB_PORT) || 3306,
+                    user: process.env.DB_USERNAME || 'citlogis_bryan',
+                    password: process.env.DB_PASSWORD || '@bo9511221.qwerty',
+                    database: process.env.DB_DATABASE || 'citlogis_finance',
+                });
+                console.log('Database connection created successfully');
+            }
+            await this.dbConnection.ping();
+            console.log('Database connection is alive');
+            return this.dbConnection;
         }
-        return this.dbConnection;
+        catch (error) {
+            console.error('Database connection error:', error);
+            console.error('Error stack:', error.stack);
+            this.dbConnection = null;
+            throw new Error(`Database connection failed: ${error.message}`);
+        }
     }
     async checkIn(checkInDto) {
         const { staffId, ipAddress, deviceId, ...checkInData } = checkInDto;
@@ -141,6 +157,11 @@ let AttendanceService = class AttendanceService {
     }
     async checkOut(checkOutDto) {
         const { staffId, deviceId, ipAddress, ...checkOutData } = checkOutDto;
+        console.log('=== CHECK-OUT PROCESS START ===');
+        console.log('Staff ID:', staffId);
+        console.log('Device ID:', deviceId);
+        console.log('IP Address:', ipAddress);
+        console.log('Check-out data:', checkOutData);
         if (ipAddress) {
             console.log(`Validating IP address for check-out: "${ipAddress}"`);
             const isIpAllowed = await this.allowedIpService.isIpAllowed(ipAddress);
@@ -150,7 +171,23 @@ let AttendanceService = class AttendanceService {
             }
         }
         try {
+            console.log('Getting database connection...');
             const connection = await this.getDbConnection();
+            console.log('Database connection established');
+            console.log('Checking if CheckOutStaff procedure exists...');
+            try {
+                const [procedureCheck] = await connection.execute('SHOW PROCEDURE STATUS WHERE Name = ? AND Db = ?', ['CheckOutStaff', process.env.DB_DATABASE || 'citlogis_finance']);
+                console.log('Procedure check result:', procedureCheck);
+                if (!Array.isArray(procedureCheck) || procedureCheck.length === 0) {
+                    console.error('CheckOutStaff procedure not found, using TypeORM fallback');
+                    throw new Error('Stored procedure not found');
+                }
+            }
+            catch (error) {
+                console.error('Error checking stored procedure:', error);
+                throw new Error('Stored procedure check failed');
+            }
+            console.log('Calling CheckOutStaff procedure...');
             const [results] = await connection.execute('CALL CheckOutStaff(?, ?, ?, ?, ?)', [
                 staffId,
                 ipAddress || 'unknown',
@@ -158,15 +195,23 @@ let AttendanceService = class AttendanceService {
                 checkOutData.longitude || null,
                 checkOutData.location || null
             ]);
+            console.log('Procedure results:', results);
             const result = Array.isArray(results) ? results[0] : results;
             const procedureResult = Array.isArray(result) ? result[0] : result;
+            console.log('Procedure result:', procedureResult);
             if (procedureResult.result === 'ERROR') {
+                console.error('Procedure returned error:', procedureResult.message);
                 throw new common_1.BadRequestException(procedureResult.message);
             }
-            return this.getCurrentAttendance(staffId);
+            console.log('Procedure successful, getting updated attendance...');
+            const updatedAttendance = await this.getCurrentAttendance(staffId);
+            console.log('Updated attendance:', updatedAttendance);
+            return updatedAttendance;
         }
         catch (error) {
-            console.error('Error calling CheckOutStaff procedure:', error);
+            console.error('Error in checkOut method:', error);
+            console.error('Error stack:', error.stack);
+            console.log('Falling back to TypeORM check-out...');
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const attendance = await this.attendanceRepository.findOne({
@@ -199,7 +244,10 @@ let AttendanceService = class AttendanceService {
             attendance.earlyDepartureMinutes = earlyDepartureMinutes;
             attendance.status = attendance_entity_1.AttendanceStatus.CHECKED_OUT;
             attendance.notes = checkOutData.notes;
-            return this.attendanceRepository.save(attendance);
+            console.log('Saving attendance with TypeORM fallback...');
+            const savedAttendance = await this.attendanceRepository.save(attendance);
+            console.log('Attendance saved successfully:', savedAttendance);
+            return savedAttendance;
         }
     }
     async getAttendanceByStaff(staffId, startDate, endDate) {
@@ -288,15 +336,24 @@ let AttendanceService = class AttendanceService {
         };
     }
     async getCurrentAttendance(staffId) {
+        console.log('=== GET CURRENT ATTENDANCE START ===');
+        console.log('Staff ID:', staffId);
         try {
             const connection = await this.getDbConnection();
+            console.log('Database connection established for getCurrentAttendance');
+            console.log('Calling GetCurrentAttendanceStatus procedure...');
             const [results] = await connection.execute('CALL GetCurrentAttendanceStatus(?)', [staffId]);
+            console.log('GetCurrentAttendanceStatus results:', results);
             const dataArray = Array.isArray(results) ? results[0] : [];
+            console.log('Data array:', dataArray);
             if (!dataArray || (Array.isArray(dataArray) && dataArray.length === 0)) {
+                console.log('No attendance data found, returning null');
                 return null;
             }
             const attendanceData = dataArray[0];
+            console.log('Attendance data from procedure:', attendanceData);
             const staff = await this.staffService.findOne(staffId);
+            console.log('Staff data:', staff);
             const attendance = new attendance_entity_1.Attendance();
             attendance.id = attendanceData.id;
             attendance.staffId = attendanceData.staff_id;
@@ -329,16 +386,35 @@ let AttendanceService = class AttendanceService {
             if (staff) {
                 attendance.staff = staff;
             }
+            console.log('Created attendance object:', attendance);
             return attendance;
         }
         catch (error) {
             console.error('Error calling GetCurrentAttendanceStatus procedure:', error);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            return this.attendanceRepository.findOne({
-                where: { staffId, date: today },
-                relations: ['staff'],
-            });
+            console.error('Error stack:', error.stack);
+            console.log('Falling back to TypeORM query...');
+            try {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                console.log('Querying with TypeORM fallback...');
+                console.log('Date range:', today, 'to', tomorrow);
+                const fallbackResult = await this.attendanceRepository.findOne({
+                    where: {
+                        staffId: staffId,
+                        date: today,
+                    },
+                    relations: ['staff'],
+                    order: { createdAt: 'DESC' }
+                });
+                console.log('TypeORM fallback result:', fallbackResult);
+                return fallbackResult;
+            }
+            catch (fallbackError) {
+                console.error('TypeORM fallback also failed:', fallbackError);
+                throw fallbackError;
+            }
         }
     }
     async updateAttendance(id, updateData) {

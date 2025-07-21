@@ -11,8 +11,8 @@ async function bootstrap() {
             'http://localhost:8080',
             'http://localhost:54355',
             'http://localhost:54356',
-            'http://localhost:59905',
-            'http://192.168.100.2:59905',
+            'http://localhost:52531',
+            'http://192.168.100.2:52531',
             'capacitor://localhost'
         ],
         credentials: true,

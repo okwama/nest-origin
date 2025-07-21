@@ -3,6 +3,8 @@ import { AllowedIp } from './entities/allowed-ip.entity';
 export declare class AllowedIpService {
     private allowedIpRepository;
     constructor(allowedIpRepository: Repository<AllowedIp>);
+    private isIpInCidrRange;
+    private ipToNumber;
     findAll(): Promise<AllowedIp[]>;
     findById(id: number): Promise<AllowedIp>;
     findByIpAddress(ipAddress: string): Promise<AllowedIp>;

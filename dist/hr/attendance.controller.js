@@ -43,18 +43,36 @@ let AttendanceController = class AttendanceController {
         };
     }
     async checkOut(checkOutDto, req) {
-        const staffId = req.user.id;
-        await this.attendanceService.validateDeviceAndIp(staffId, checkOutDto.deviceId, checkOutDto.ipAddress);
-        const checkoutData = {
-            ...checkOutDto,
-            staffId,
-        };
-        const result = await this.attendanceService.checkOut(checkoutData);
-        return {
-            success: true,
-            message: 'Check-out successful',
-            attendanceId: result.id
-        };
+        console.log('=== CHECK-OUT CONTROLLER START ===');
+        console.log('Request body:', checkOutDto);
+        console.log('User from JWT:', req.user);
+        try {
+            const staffId = req.user.id;
+            console.log('Extracted staff ID:', staffId);
+            const checkoutData = {
+                ...checkOutDto,
+                staffId,
+            };
+            console.log('Checkout data with staff ID:', checkoutData);
+            console.log('Calling attendance service checkOut...');
+            const result = await this.attendanceService.checkOut(checkoutData);
+            console.log('Service result:', result);
+            if (!result) {
+                console.error('Check-out failed - no attendance record found');
+                throw new common_1.BadRequestException('Check-out failed - no attendance record found');
+            }
+            console.log('Check-out successful, returning response...');
+            return {
+                success: true,
+                message: 'Check-out successful',
+                attendanceId: result.id
+            };
+        }
+        catch (error) {
+            console.error('Error in checkOut controller:', error);
+            console.error('Error stack:', error.stack);
+            throw error;
+        }
     }
     async getCurrentAttendance(staffId, req) {
         if (req.user.id !== staffId && !req.user.permissions?.canManageUsers) {
@@ -118,7 +136,7 @@ __decorate([
 ], AttendanceController.prototype, "checkIn", null);
 __decorate([
     (0, common_1.Post)('check-out'),
-    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),

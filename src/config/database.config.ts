@@ -18,6 +18,7 @@ import { LeaveType } from '../hr/entities/leave-type.entity';
 import { Task } from '../hr/entities/task.entity';
 import { AllowedIp } from '../hr/entities/allowed-ip.entity';
 import { UserDevice } from '../hr/entities/user-device.entity';
+import { OutOfOffice } from '../hr/entities/out-of-office.entity';
 
 export const getDatabaseConfig = (configService: ConfigService): TypeOrmModuleOptions => {
   console.log('🔧 Database configuration debug:');
@@ -44,6 +45,7 @@ export const getDatabaseConfig = (configService: ConfigService): TypeOrmModuleOp
     Task,
     AllowedIp,
     UserDevice,
+    OutOfOffice,
   ];
 
   // MySQL configuration via DATABASE_URL (Recommended for Vercel)

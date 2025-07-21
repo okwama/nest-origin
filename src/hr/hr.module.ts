@@ -14,6 +14,11 @@ import { AllowedIpService } from './allowed-ip.service';
 import { AllowedIpController } from './allowed-ip.controller';
 import { UserDeviceService } from './user-device.service';
 import { UserDeviceController } from './user-device.controller';
+import { OutOfOffice } from './entities/out-of-office.entity';
+import { OutOfOfficeService } from './out-of-office.service';
+import { OutOfOfficeController } from './out-of-office.controller';
+import { ActivityController } from './activity.controller';
+import { ActivityService } from './activity.service';
 // Entities
 import { Attendance } from './entities/attendance.entity';
 import { LeaveRequest } from './entities/leave-request.entity';
@@ -38,6 +43,7 @@ import { UsersModule } from '../users/users.module';
       Notice,
       AllowedIp,
       UserDevice,
+      OutOfOffice,
     ]),
     UsersModule, // Import UsersModule to access StaffService
   ],
@@ -49,6 +55,8 @@ import { UsersModule } from '../users/users.module';
     PayrollController,
     AllowedIpController,
     UserDeviceController,
+    OutOfOfficeController,
+    ActivityController,
   ],
   providers: [
     AttendanceService,
@@ -58,6 +66,8 @@ import { UsersModule } from '../users/users.module';
     PayrollService,
     AllowedIpService,
     UserDeviceService,
+    OutOfOfficeService,
+    ActivityService,
   ],
   exports: [
     AttendanceService,
@@ -67,6 +77,8 @@ import { UsersModule } from '../users/users.module';
     PayrollService,
     AllowedIpService,
     UserDeviceService,
+    OutOfOfficeService,
+    ActivityService,
   ],
 })
 export class HrModule {} 

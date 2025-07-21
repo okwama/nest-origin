@@ -17,10 +17,9 @@ const leave_type_entity_1 = require("../hr/entities/leave-type.entity");
 const task_entity_1 = require("../hr/entities/task.entity");
 const allowed_ip_entity_1 = require("../hr/entities/allowed-ip.entity");
 const user_device_entity_1 = require("../hr/entities/user-device.entity");
+const out_of_office_entity_1 = require("../hr/entities/out-of-office.entity");
 const getDatabaseConfig = (configService) => {
-    const useLocalDb = configService.get('USE_LOCAL_DB', 'false');
     console.log('🔧 Database configuration debug:');
-    console.log('USE_LOCAL_DB:', useLocalDb);
     console.log('DB_HOST:', configService.get('DB_HOST'));
     console.log('DB_USERNAME:', configService.get('DB_USERNAME'));
     console.log('DB_DATABASE:', configService.get('DB_DATABASE'));
@@ -42,19 +41,11 @@ const getDatabaseConfig = (configService) => {
         task_entity_1.Task,
         allowed_ip_entity_1.AllowedIp,
         user_device_entity_1.UserDevice,
+        out_of_office_entity_1.OutOfOffice,
     ];
-    if (useLocalDb === 'true') {
-        console.log('🔧 Using local SQLite database for development');
-        return {
-            type: 'sqlite',
-            database: './woosh-dev.db',
-            entities,
-            synchronize: true,
-            logging: true,
-        };
-    }
     const databaseUrl = configService.get('DATABASE_URL');
     if (databaseUrl) {
+        console.log('🔧 Using DATABASE_URL for database connection');
         const url = new URL(databaseUrl);
         return {
             type: 'mysql',
@@ -76,7 +67,7 @@ const getDatabaseConfig = (configService) => {
             keepConnectionAlive: true,
         };
     }
-    console.log('🔧 Using live MySQL database: citlogis_finance');
+    console.log('🔧 Using individual database parameters');
     const config = {
         type: 'mysql',
         host: configService.get('DB_HOST', '102.130.125.52'),
@@ -90,26 +81,12 @@ const getDatabaseConfig = (configService) => {
         charset: 'utf8mb4',
         extra: {
             connectionLimit: 20,
-            charset: 'utf8mb4_unicode_ci',
-            acquireTimeout: 60000,
-            timeout: 60000,
-            reconnect: true,
-            multipleStatements: true
+            charset: 'utf8mb4_unicode_ci'
         },
-        retryAttempts: 15,
-        retryDelay: 2000,
+        retryAttempts: 10,
+        retryDelay: 3000,
         keepConnectionAlive: true,
-        maxQueryExecutionTime: 30000,
     };
-    console.log('🔧 Live MySQL config:', {
-        host: config.host,
-        port: config.port,
-        username: config.username,
-        database: config.database,
-        password: config.password ? '***' : 'undefined',
-        synchronize: config.synchronize,
-        logging: config.logging
-    });
     return config;
 };
 exports.getDatabaseConfig = getDatabaseConfig;
